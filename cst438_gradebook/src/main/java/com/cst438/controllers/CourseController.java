@@ -6,7 +6,11 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,6 +26,7 @@ import com.cst438.domain.Enrollment;
 import com.cst438.domain.GradebookDTO;
 
 @RestController
+@CrossOrigin(origins = {"http://localhost:3000","http://localhost:3001"})
 public class CourseController {
 	
 	@Autowired
@@ -33,7 +38,7 @@ public class CourseController {
 	@Autowired
 	AssignmentGradeRepository assignmentGradeRepository;
 	
-	@PostMapping("/addAssignment")
+	@PostMapping("/assignment")
 	@Transactional
 	public AssignmentListDTO.AssignmentDTO addAssignment(@RequestBody AssignmentListDTO.AssignmentDTO assignment) {
 		System.out.print("Begin");
@@ -47,6 +52,7 @@ public class CourseController {
 				throw new ResponseStatusException( HttpStatus.BAD_REQUEST, "Tried to add assignment that already exists." );
 			}
 		}
+		System.out.print(assignment.dueDate);
 		Date dueDate = Date.valueOf(assignment.dueDate);
 		Course c = courseRepository.findById(assignment.courseId).orElse(null);
 		
@@ -61,16 +67,16 @@ public class CourseController {
 		return assignment;
 	}
 	
-	@PostMapping("/renameAssignment")
+	@PutMapping("/assignment/{id}/{name}")
 	@Transactional
-	public AssignmentListDTO.AssignmentDTO renameAssignment(@RequestBody AssignmentListDTO.AssignmentDTO assignment) {
+	public AssignmentListDTO.AssignmentDTO renameAssignment(@PathVariable int id,@PathVariable String name) {
 		
 		String email = "dwisneski@csumb.edu";
 		List<Assignment> assignments = assignmentRepository.findNeedGradingByEmail(email);
 		for(Assignment a: assignments) {
 			AssignmentListDTO.AssignmentDTO as = makeAssignmentDTO(a);
-			if(assignment.assignmentId == as.assignmentId) {
-				a.setName(assignment.assignmentName);
+			if(id == as.assignmentId) {
+				a.setName(name);
 				assignmentRepository.save(a);
 				return makeAssignmentDTO(a);
 			}
@@ -78,21 +84,20 @@ public class CourseController {
 		throw new ResponseStatusException( HttpStatus.BAD_REQUEST, "Tried to rename an assignment that does not exist." );
 	}
 	
-	@PostMapping("/deleteAssignment")
+	@DeleteMapping("/assignment/{id}")
 	@Transactional
-	public void deleteAssignment(@RequestBody AssignmentListDTO.AssignmentDTO assignment) {
-		Date dueDate = Date.valueOf(assignment.dueDate);
-		Course c = courseRepository.findById(assignment.courseId).orElse(null);
+	public void deleteAssignment(@PathVariable int id) {
+				
+		String email = "dwisneski@csumb.edu";
 		
 		Assignment assign = new Assignment();
 		
-		assign.setId(assignment.assignmentId);
-		assign.setName(assignment.assignmentName);
-		assign.setDueDate(dueDate);
-		assign.setCourse(c);
-		assign.setNeedsGrading(1);
-		
-		String email = "dwisneski@csumb.edu";
+		List<Assignment> assignments = assignmentRepository.findNeedGradingByEmail(email);
+		for (Assignment a: assignments) {
+			if(id == a.getId()) {
+				assign = a;
+			}
+		}
 		
 		GradebookDTO gradebook = new GradebookDTO();
 		gradebook.assignmentId= assign.getId();
